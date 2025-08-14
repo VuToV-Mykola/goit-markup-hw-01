@@ -1,29 +1,29 @@
-name: Screenshot & Visitor Badge Update
+name: Screenshot & Unique Visitor/Likes System
 
 on:
   push:
-    branches: [main, master] # Підтримка обох назв головної гілки
+    branches: [main, master]
   schedule:
-    - cron: '0 */2 * * *' # Кожні 2 години (менше навантаження на API)
+    - cron: '0 */2 * * *' # Кожні 2 години
   workflow_dispatch:
     inputs:
-      force_update:
-        description: 'Force update even if no changes'
+      add_like:
+        description: 'Add your like (only one per user allowed)'
         required: false
         default: false
         type: boolean
       screenshot_selector:
-        description: 'CSS selector for screenshot (optional)'
+        description: 'CSS selector for screenshot'
         required: false
         default: 'body'
         type: string
 
 env:
-  # Можна налаштувати через змінні середовища репозиторію
-  SCREENSHOT_WIDTH: '1920'
-  SCREENSHOT_HEIGHT: '1080'
-  BADGE_STYLE: 'for-the-badge'
-  BADGE_COLOR: 'brightgreen'
+  SCREENSHOT_WIDTH: ${{ vars.SCREENSHOT_WIDTH || '1920' }}
+  SCREENSHOT_HEIGHT: ${{ vars.SCREENSHOT_HEIGHT || '1080' }}
+  BADGE_STYLE: ${{ vars.BADGE_STYLE || 'for-the-badge' }}
+  BADGE_COLOR: ${{ vars.BADGE_COLOR || 'brightgreen' }}
+  LIKES_COLOR: ${{ vars.LIKES_COLOR || 'red' }}
 
 jobs:
   update-readme-and-visitor:
@@ -52,18 +52,16 @@ jobs:
           if [ -f "package.json" ]; then
             npm ci
           else
-            # Створюємо мінімальний package.json якщо його немає
             echo '{"name": "screenshot-generator", "version": "1.0.0", "dependencies": {"puppeteer": "^21.0.0"}}' > package.json
             npm install
           fi
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
 
-      - name: Create screenshot script if not exists
+      - name: Create screenshot script
         run: |
-          if [ ! -f "screenshot.js" ] && [ ! -f "scripts/screenshot.js" ]; then
-            mkdir -p scripts
-            cat > scripts/screenshot.js << 'EOF'
+          mkdir -p scripts
+          cat > scripts/screenshot.js << 'EOF'
           const puppeteer = require('puppeteer');
           const fs = require('fs');
           const path = require('path');
@@ -76,7 +74,6 @@ jobs:
             
             const page = await browser.newPage();
             
-            // Отримуємо URL з GitHub Pages або локальний файл
             const githubPages = `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/${process.env.GITHUB_REPOSITORY_NAME}/`;
             const indexPath = path.join(process.cwd(), 'index.html');
             
@@ -108,18 +105,17 @@ jobs:
               console.log('✅ Screenshot created successfully');
             } catch (error) {
               console.error('❌ Screenshot failed:', error.message);
-              // Створюємо заглушку
-              const canvas = require('canvas').createCanvas(800, 600);
-              const ctx = canvas.getContext('2d');
-              ctx.fillStyle = '#f0f0f0';
-              ctx.fillRect(0, 0, 800, 600);
-              ctx.fillStyle = '#333';
-              ctx.font = '24px Arial';
-              ctx.textAlign = 'center';
-              ctx.fillText('Screenshot not available', 400, 300);
               
-              const buffer = canvas.toBuffer('image/png');
-              fs.writeFileSync('screenshot.png', buffer);
+              const fallbackSvg = `
+                <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="800" height="600" fill="#f0f0f0"/>
+                  <text x="400" y="300" text-anchor="middle" fill="#333" font-size="24" font-family="Arial">
+                    Screenshot not available
+                  </text>
+                </svg>
+              `;
+              
+              fs.writeFileSync('screenshot.svg', fallbackSvg);
             }
             
             await browser.close();
@@ -127,139 +123,105 @@ jobs:
 
           takeScreenshot().catch(console.error);
           EOF
-          fi
 
       - name: Generate screenshot
-        run: |
-          if [ -f "package.json" ] && npm run | grep -q "screenshot"; then
-            npm run screenshot
-          else
-            node scripts/screenshot.js
-          fi
+        run: node scripts/screenshot.js
         env:
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}
           SCREENSHOT_SELECTOR: ${{ github.event.inputs.screenshot_selector }}
 
-      - name: Fetch repository traffic and generate visitor badge
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Manage likes system
         run: |
-          echo "🔹 Fetching repository views for ${{ github.repository }}..."
+          # Initialize likes data
+          if [ ! -f "likes-data.json" ]; then
+            echo '{"total_likes":0,"unique_users":[],"created_at":"","last_updated":""}' > likes-data.json
+          fi
 
-          # Використовуємо PAT_TOKEN якщо є, інакше GITHUB_TOKEN
-          TOKEN="${PAT_TOKEN:-$GITHUB_TOKEN}"
+          # Get current data
+          CURRENT_LIKES=$(jq -r '.total_likes' likes-data.json)
+          CURRENT_USERS=$(jq -r '.unique_users[]' likes-data.json)
 
-          VIEWS=$(curl -s -H "Authorization: token $TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/traffic/views" \
-            | jq '.count // 0')
-
-          # Fallback якщо API недоступне
-          if [ "$VIEWS" = "null" ] || [ -z "$VIEWS" ] || [ "$VIEWS" = "0" ]; then
-            echo "⚠️ Could not fetch views from API, checking existing badge..."
-            if [ -f "visitor-count.json" ]; then
-              VIEWS=$(jq -r '.message' visitor-count.json 2>/dev/null || echo "0")
-              VIEWS=$((VIEWS + 1)) # Інкрементуємо на 1
+          # Handle like request
+          if [ "${{ github.event.inputs.add_like }}" = "true" ]; then
+            USER="${{ github.actor }}"
+            
+            if echo "$CURRENT_USERS" | grep -q "$USER"; then
+              echo "LIKE_STATUS=already_liked" >> $GITHUB_ENV
+              echo "⚠️ $USER already liked this project!"
             else
-              VIEWS=1
+              NEW_LIKES=$((CURRENT_LIKES + 1))
+              jq --arg user "$USER" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                '.total_likes += 1 | .unique_users += [$user] | .last_updated = $date | if .created_at == "" then .created_at = $date else . end' \
+                likes-data.json > tmp.json && mv tmp.json likes-data.json
+              
+              echo "LIKE_STATUS=added" >> $GITHUB_ENV
+              echo "💖 New like from $USER! Total: $NEW_LIKES"
             fi
           fi
 
-          echo "🟢 Repository Views: $VIEWS"
+          # Update likes badge
+          CURRENT_LIKES=$(jq -r '.total_likes' likes-data.json)
+          echo "{\"schemaVersion\":1,\"label\":\"❤️ likes\",\"message\":\"$CURRENT_LIKES\",\"color\":\"${{ env.LIKES_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > likes-count.json
 
-          # Генеруємо badge JSON
-          cat > visitor-count.json << EOF
-          {
-            "schemaVersion": 1,
-            "label": "views",
-            "message": "$VIEWS",
-            "color": "${{ env.BADGE_COLOR }}",
-            "style": "${{ env.BADGE_STYLE }}"
-          }
-          EOF
+      - name: Update visitor count
+        run: |
+          # Fallback visitor count system
+          if [ ! -f "visitor-data.json" ]; then
+            echo '{"unique_visitors":1,"last_updated":"","fallback_mode":true}' > visitor-data.json
+          fi
 
-      - name: Update or create README.md
+          # Increment if manual run by user
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.actor }}" != "github-actions[bot]" ]; then
+            CURRENT=$(jq -r '.unique_visitors' visitor-data.json)
+            NEW=$((CURRENT + 1))
+            jq --arg count "$NEW" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '.unique_visitors = ($count | tonumber) | .last_updated = $date' \
+              visitor-data.json > tmp.json && mv tmp.json visitor-data.json
+          fi
+
+          CURRENT_VISITORS=$(jq -r '.unique_visitors' visitor-data.json)
+          echo "{\"schemaVersion\":1,\"label\":\"👀 views\",\"message\":\"$CURRENT_VISITORS\",\"color\":\"${{ env.BADGE_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > visitor-count.json
+
+      - name: Update README
         run: |
           REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
+          LIKES=$(jq -r '.total_likes' likes-data.json)
+          VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
 
-          # Створюємо новий README
+          # Create interactive like button
+          cat > like-button.md << 'EOF'
+          [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
+          EOF
+
+          # Generate new README
           {
-            echo "![Visitor Count](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)"
+            echo "# ${{ github.event.repository.name }}"
             echo ""
-            echo "## 📸 Screenshot"
-            echo ""
-            echo "![Screenshot](screenshot.png)"
+            echo "![Views](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)"
+            cat like-button.md
             echo ""
             
-            # Додаємо існуючий контент з template або старого README
             if [ -f "README_template.md" ]; then
               cat README_template.md
-            elif [ -f "README.md" ]; then
-              # Пропускаємо старі badge та screenshot секції
-              sed '/^!\[Visitor Count\]/d; /^!\[Screenshot\]/d; /^## 📸 Screenshot$/,/^$/d; /^## Screenshot$/,/^$/d' README.md
             else
-              echo "# ${{ github.event.repository.name }}"
+              echo "## 💖 How to like this project:"
+              echo "1. Click the red heart button above"
+              echo "2. Click \"Run workflow\""
+              echo "3. Check \"Add your like\""
+              echo "4. Click \"Run workflow\" again"
               echo ""
-              echo "Welcome to this repository!"
-              echo ""
-              echo "## Features"
-              echo ""
-              echo "- Automatic screenshot generation"
-              echo "- Visitor counter badge"
-              echo "- Updated via GitHub Actions"
+              echo "## 📊 Stats"
+              echo "- Total likes: ${LIKES}"
+              echo "- Unique visitors: ${VIEWS}"
             fi
-          } > README_new.md
+          } > README.md
 
-          # Замінюємо README
-          mv README_new.md README.md
-
-      - name: Check for changes
-        id: changes
-        run: |
-          git add -A
-          if git diff --cached --quiet; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No changes detected"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "✅ Changes detected"
-          fi
-
-      - name: Commit and push changes
-        if: steps.changes.outputs.changed == 'true' || github.event.inputs.force_update == 'true'
+      - name: Commit changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Pull з rebase для синхронізації
-          git pull --rebase --autostash origin ${{ github.ref_name }} || true
-
-          git add README.md screenshot.png visitor-count.json
-
-          COMMIT_MSG="📸 Update README, screenshot and visitor badge"
-          if [ "${{ github.event.inputs.force_update }}" = "true" ]; then
-            COMMIT_MSG="$COMMIT_MSG (forced)"
-          fi
-
-          git commit -m "$COMMIT_MSG [ci skip]" || {
-            echo "⚠️ No changes to commit or commit failed"
-            exit 0
-          }
-
-          git push origin ${{ github.ref_name }}
-
-      - name: Display results
-        if: always()
-        run: |
-          echo "📊 Workflow Summary:"
-          echo "=================="
-          if [ -f "screenshot.png" ]; then
-            echo "📸 Screenshot: $(ls -lh screenshot.png | awk '{print $5}')"
-          fi
-          if [ -f "visitor-count.json" ]; then
-            echo "👥 Visitor count: $(jq -r '.message' visitor-count.json)"
-          fi
-          echo "🌿 Branch: ${{ github.ref_name }}"
-          echo "📝 Repository: ${{ github.repository }}"
+          git add .
+          git commit -m "📊 Update stats: ${VIEWS} views, ${LIKES} likes [skip ci]" || exit 0
+          git push
