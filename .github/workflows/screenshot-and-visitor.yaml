@@ -179,7 +179,9 @@ jobs:
           REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
           LIKES=$(jq -r '.total_likes' likes-data.json)
           VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
-          WORKFLOW_FILE=$(basename $GITHUB_WORKFLOW)
+
+          # Автоматичне визначення імені workflow-файлу без пробілів та спецсимволів
+          WORKFLOW_FILE=$(echo "$GITHUB_WORKFLOW" | tr ' ' '-' | tr -d '&')".yml"
 
           cat > like-button.md << EOF
           [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/${{ github.repository }}/actions/workflows/${WORKFLOW_FILE}?add_like=true)
