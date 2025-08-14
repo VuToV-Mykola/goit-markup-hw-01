@@ -54,7 +54,7 @@
 
 ## 🔗 Жива сторінка
 
-[Відкрити на GitHub Pages](https://github.com/VuToV-Mykola/goit-markup-hw-01)
+[Відкрити на GitHub Pages](https://vutov-mykola.github.io/goit-markup-hw-01/)
 
 ---
 
