@@ -1,4 +1,5 @@
-![Visitor Count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/visitor-count.json)
+![Unique Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json)
+![Unique Likes](https://img.shields.io/endpoint?url=REPO_URL/likes-count.json)
 
 ## Screenshot
 

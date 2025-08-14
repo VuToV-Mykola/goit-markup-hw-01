@@ -1,10 +1,12 @@
+![Unique Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json) ![Unique Likes](https://img.shields.io/endpoint?url=REPO_URL/likes-count.json)
+
 ## Мої досягнення
 
 ![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
 
 ## Мої сертифікати - Пройшов курс на Sololearn :
 
- ![Certification Badge](./assets/certificat.jpg) 
+![Certification Badge](./assets/certificat.jpg)
 
 [SOLOLEARN](https://www.sololearn.com/certificates/CT-AS5OQBMQ)
 
