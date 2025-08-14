@@ -4,13 +4,13 @@
 
 ## Мої сертифікати - Пройшов курс на Sololearn :
 
-![Certification Badge](./assets/certificat.jpg)
+- ![Certification Badge](./assets/certificat.jpg) 
 
-[Certificat:https://www.sololearn.com/certificates/CT-AS5OQBMQ] https://www.sololearn.com/certificates/CT-AS5OQBMQ ! [Certification Badge](./assets/certificat-02.jpg)
+- ![SOLOLEARN](https://www.sololearn.com/certificates/CT-AS5OQBMQ)
 
-![Certification Badge](./assets/certificat-02.jpg)
+- ![Certification Badge](./assets/certificat-02.jpg)
 
-[Certificat:https://www.sololearn.com/certificates/CC-H5NEDBR5] https://www.sololearn.com/certificates/CC-H5NEDBR5
+- ![SOLOLEARN](www.sololearn.com/certificates/CC-H5NEDBR5)
 
 ## 📌 Завдання
 

@@ -6,7 +6,17 @@
 
 ## Мої досягнення
 
-![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-02.jpg) 🎓 **Сертифікат**: Пройшов курс на Sololearn : ![Certification Badge](./assets/certificat.jpg)
+![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
+
+## Мої сертифікати - Пройшов курс на Sololearn :
+
+- ![Certification Badge](./assets/certificat.jpg)
+
+- ![SOLOLEARN](https://www.sololearn.com/certificates/CT-AS5OQBMQ)
+
+- ![Certification Badge](./assets/certificat-02.jpg)
+
+- ![SOLOLEARN](www.sololearn.com/certificates/CC-H5NEDBR5)
 
 ## 📌 Завдання
 

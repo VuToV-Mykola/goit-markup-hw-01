@@ -2,86 +2,264 @@ name: Screenshot & Visitor Badge Update
 
 on:
   push:
-    branches: [main]
+    branches: [main, master] # Підтримка обох назв головної гілки
   schedule:
-    - cron: '0 * * * *' # щогодини
+    - cron: '0 */2 * * *' # Кожні 2 години (менше навантаження на API)
   workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update even if no changes'
+        required: false
+        default: false
+        type: boolean
+      screenshot_selector:
+        description: 'CSS selector for screenshot (optional)'
+        required: false
+        default: 'body'
+        type: string
+
+env:
+  # Можна налаштувати через змінні середовища репозиторію
+  SCREENSHOT_WIDTH: '1920'
+  SCREENSHOT_HEIGHT: '1080'
+  BADGE_STYLE: 'for-the-badge'
+  BADGE_COLOR: 'brightgreen'
 
 jobs:
   update-readme-and-visitor:
     runs-on: ubuntu-latest
-
-    env:
-      BRANCH_NAME: ${{ github.ref_name }}
-      REPO_NAME: ${{ github.repository }}
-      REPO_OWNER: ${{ github.repository_owner }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install Google Chrome
-        run: sudo apt-get update && sudo apt-get install -y google-chrome-stable
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Node.js dependencies
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci
+          else
+            # Створюємо мінімальний package.json якщо його немає
+            echo '{"name": "screenshot-generator", "version": "1.0.0", "dependencies": {"puppeteer": "^21.0.0"}}' > package.json
+            npm install
+          fi
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
 
-      - name: Generate screenshot
-        run: npm run screenshot
+      - name: Create screenshot script if not exists
+        run: |
+          if [ ! -f "screenshot.js" ] && [ ! -f "scripts/screenshot.js" ]; then
+            mkdir -p scripts
+            cat > scripts/screenshot.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const fs = require('fs');
+          const path = require('path');
 
-      - name: Fetch repo traffic and generate visitor badge
+          async function takeScreenshot() {
+            const browser = await puppeteer.launch({
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+              executablePath: '/usr/bin/google-chrome'
+            });
+            
+            const page = await browser.newPage();
+            
+            // Отримуємо URL з GitHub Pages або локальний файл
+            const githubPages = `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/${process.env.GITHUB_REPOSITORY_NAME}/`;
+            const indexPath = path.join(process.cwd(), 'index.html');
+            
+            let targetUrl;
+            if (fs.existsSync(indexPath)) {
+              targetUrl = `file://${indexPath}`;
+            } else {
+              targetUrl = githubPages;
+              console.log(`📡 Using GitHub Pages URL: ${targetUrl}`);
+            }
+            
+            try {
+              await page.setViewport({
+                width: parseInt(process.env.SCREENSHOT_WIDTH) || 1920,
+                height: parseInt(process.env.SCREENSHOT_HEIGHT) || 1080
+              });
+              
+              await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+              
+              const selector = process.env.SCREENSHOT_SELECTOR || 'body';
+              await page.waitForSelector(selector, { timeout: 10000 });
+              
+              await page.screenshot({
+                path: 'screenshot.png',
+                fullPage: true,
+                type: 'png'
+              });
+              
+              console.log('✅ Screenshot created successfully');
+            } catch (error) {
+              console.error('❌ Screenshot failed:', error.message);
+              // Створюємо заглушку
+              const canvas = require('canvas').createCanvas(800, 600);
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#f0f0f0';
+              ctx.fillRect(0, 0, 800, 600);
+              ctx.fillStyle = '#333';
+              ctx.font = '24px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText('Screenshot not available', 400, 300);
+              
+              const buffer = canvas.toBuffer('image/png');
+              fs.writeFileSync('screenshot.png', buffer);
+            }
+            
+            await browser.close();
+          }
+
+          takeScreenshot().catch(console.error);
+          EOF
+          fi
+
+      - name: Generate screenshot
+        run: |
+          if [ -f "package.json" ] && npm run | grep -q "screenshot"; then
+            npm run screenshot
+          else
+            node scripts/screenshot.js
+          fi
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}
+          SCREENSHOT_SELECTOR: ${{ github.event.inputs.screenshot_selector }}
+
+      - name: Fetch repository traffic and generate visitor badge
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔹 Fetching repository views for $REPO_NAME..."
-          VIEWS=$(curl -s -H "Authorization: token $PAT_TOKEN" \
-            "https://api.github.com/repos/$REPO_NAME/traffic/views" \
-            | jq '.count')
+          echo "🔹 Fetching repository views for ${{ github.repository }}..."
 
-          if [ "$VIEWS" = "null" ] || [ -z "$VIEWS" ]; then
-            VIEWS=0
+          # Використовуємо PAT_TOKEN якщо є, інакше GITHUB_TOKEN
+          TOKEN="${PAT_TOKEN:-$GITHUB_TOKEN}"
+
+          VIEWS=$(curl -s -H "Authorization: token $TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/traffic/views" \
+            | jq '.count // 0')
+
+          # Fallback якщо API недоступне
+          if [ "$VIEWS" = "null" ] || [ -z "$VIEWS" ] || [ "$VIEWS" = "0" ]; then
+            echo "⚠️ Could not fetch views from API, checking existing badge..."
+            if [ -f "visitor-count.json" ]; then
+              VIEWS=$(jq -r '.message' visitor-count.json 2>/dev/null || echo "0")
+              VIEWS=$((VIEWS + 1)) # Інкрементуємо на 1
+            else
+              VIEWS=1
+            fi
           fi
 
           echo "🟢 Repository Views: $VIEWS"
 
-          echo "{\"schemaVersion\":1,\"label\":\"views\",\"message\":\"$VIEWS\",\"color\":\"brightgreen\",\"style\":\"for-the-badge\"}" > visitor-count.json
+          # Генеруємо badge JSON
+          cat > visitor-count.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "views",
+            "message": "$VIEWS",
+            "color": "${{ env.BADGE_COLOR }}",
+            "style": "${{ env.BADGE_STYLE }}"
+          }
+          EOF
 
-      - name: Update README.md
+      - name: Update or create README.md
         run: |
-          echo "![Visitor Count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/$REPO_NAME/$BRANCH_NAME/visitor-count.json)" > README_new.md
-          echo "" >> README_new.md
-          echo "## Screenshot" >> README_new.md
-          echo "" >> README_new.md
-          echo "![Screenshot](screenshot.png)" >> README_new.md
-          echo "" >> README_new.md
+          REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
 
-          if [ -f README_template.md ]; then
-            cat README_template.md >> README_new.md
-          else
-            echo "_No README_template.md found in this repository._" >> README_new.md
-          fi
+          # Створюємо новий README
+          {
+            echo "![Visitor Count](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)"
+            echo ""
+            echo "## 📸 Screenshot"
+            echo ""
+            echo "![Screenshot](screenshot.png)"
+            echo ""
+            
+            # Додаємо існуючий контент з template або старого README
+            if [ -f "README_template.md" ]; then
+              cat README_template.md
+            elif [ -f "README.md" ]; then
+              # Пропускаємо старі badge та screenshot секції
+              sed '/^!\[Visitor Count\]/d; /^!\[Screenshot\]/d; /^## 📸 Screenshot$/,/^$/d; /^## Screenshot$/,/^$/d' README.md
+            else
+              echo "# ${{ github.event.repository.name }}"
+              echo ""
+              echo "Welcome to this repository!"
+              echo ""
+              echo "## Features"
+              echo ""
+              echo "- Automatic screenshot generation"
+              echo "- Visitor counter badge"
+              echo "- Updated via GitHub Actions"
+            fi
+          } > README_new.md
 
+          # Замінюємо README
           mv README_new.md README.md
 
-      - name: Commit & Push changes
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected"
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true' || github.event.inputs.force_update == 'true'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git pull --rebase --autostash origin $BRANCH_NAME
+          # Pull з rebase для синхронізації
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
 
           git add README.md screenshot.png visitor-count.json
-          git commit -m "Update README, screenshot and visitor badge [ci skip]" || echo "No changes to commit"
-          git push
 
-      - name: Show screenshot info
-        run: ls -lh screenshot.png
+          COMMIT_MSG="📸 Update README, screenshot and visitor badge"
+          if [ "${{ github.event.inputs.force_update }}" = "true" ]; then
+            COMMIT_MSG="$COMMIT_MSG (forced)"
+          fi
+
+          git commit -m "$COMMIT_MSG [ci skip]" || {
+            echo "⚠️ No changes to commit or commit failed"
+            exit 0
+          }
+
+          git push origin ${{ github.ref_name }}
+
+      - name: Display results
+        if: always()
+        run: |
+          echo "📊 Workflow Summary:"
+          echo "=================="
+          if [ -f "screenshot.png" ]; then
+            echo "📸 Screenshot: $(ls -lh screenshot.png | awk '{print $5}')"
+          fi
+          if [ -f "visitor-count.json" ]; then
+            echo "👥 Visitor count: $(jq -r '.message' visitor-count.json)"
+          fi
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📝 Repository: ${{ github.repository }}"
