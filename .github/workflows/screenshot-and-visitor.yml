@@ -1,0 +1,81 @@
+name: Screenshot & Visitor Badge Update
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 * * * *' # щогодини
+  workflow_dispatch:
+
+jobs:
+  update-readme-and-visitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Google Chrome
+        run: sudo apt-get update && sudo apt-get install -y google-chrome-stable
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
+
+      - name: Generate screenshot
+        run: npm run screenshot
+
+      - name: Fetch repo traffic and generate visitor badge
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "🔹 Fetching repository views..."
+          VIEWS=$(curl -s -H "Authorization: token $PAT_TOKEN" \
+            https://api.github.com/repos/VuToV-Mykola/goit-markup-hw-02/traffic/views \
+            | jq '.count')
+
+          if [ "$VIEWS" = "null" ] || [ -z "$VIEWS" ]; then
+            VIEWS=0
+          fi
+
+          echo "🟢 Repository Views: $VIEWS"
+
+          echo "{\"schemaVersion\":1,\"label\":\"views\",\"message\":\"$VIEWS\",\"color\":\"brightgreen\",\"style\":\"for-the-badge\"}" > visitor-count.json
+
+      - name: Update README.md
+        run: |
+          # Створюємо тимчасовий файл з бейджем і скріншотом на початку
+          echo "![Visitor Count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/visitor-count.json)" > README_new.md
+          echo "" >> README_new.md
+          echo "## Screenshot" >> README_new.md
+          echo "" >> README_new.md
+          echo "![Screenshot](screenshot.png)" >> README_new.md
+          echo "" >> README_new.md
+
+          # Додаємо решту README з шаблону
+          cat README_template.md >> README_new.md
+
+          # Замінюємо старий README на новий
+          mv README_new.md README.md
+
+      - name: Commit & Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git pull --rebase --autostash origin main
+
+          git add README.md screenshot.png visitor-count.json
+          git commit -m "Update README, screenshot and visitor badge [ci skip]" || echo "No changes to commit"
+          git push
+
+      - name: Show screenshot info
+        run: ls -lh screenshot.png

@@ -1,6 +1,16 @@
-# ✅ ToDo:
+## Мої досягнення
 
-# План виконання ДЗ 1
+![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
+
+## Мої сертифікати - Пройшов курс на Sololearn :
+
+![Certification Badge](./assets/certificat.jpg)
+
+[Certificat:https://www.sololearn.com/certificates/CT-AS5OQBMQ] https://www.sololearn.com/certificates/CT-AS5OQBMQ ! [Certification Badge](./assets/certificat-02.jpg)
+
+![Certification Badge](./assets/certificat-02.jpg)
+
+[Certificat:https://www.sololearn.com/certificates/CC-H5NEDBR5] https://www.sololearn.com/certificates/CC-H5NEDBR5
 
 ## 📌 Завдання
 
