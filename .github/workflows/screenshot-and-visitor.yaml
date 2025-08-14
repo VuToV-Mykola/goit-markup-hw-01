@@ -10,7 +10,7 @@ on:
       add_like:
         description: 'Add your like (only one per user allowed)'
         required: false
-        default: true # Змінено на true
+        default: true
         type: boolean
       screenshot_selector:
         description: 'CSS selector for screenshot'
@@ -65,6 +65,7 @@ jobs:
 
       - name: Manage likes system
         run: |
+          # Initialize or load likes data
           if [ ! -f "likes-data.json" ]; then
             echo '{"total_likes":0,"unique_users":[],"created_at":"","last_updated":""}' > likes-data.json
           fi
@@ -72,6 +73,7 @@ jobs:
           CURRENT_LIKES=$(jq -r '.total_likes' likes-data.json)
           CURRENT_USERS=$(jq -r '.unique_users[]' likes-data.json)
 
+          # Handle like request
           if [ "${{ github.event.inputs.add_like }}" = "true" ]; then
             USER="${{ github.actor }}"
             if echo "$CURRENT_USERS" | grep -q "$USER"; then
@@ -86,15 +88,18 @@ jobs:
             fi
           fi
 
+          # Update likes badge
           CURRENT_LIKES=$(jq -r '.total_likes' likes-data.json)
-          echo "{\"schemaVersion\":1,\"label\":\"❤️ likes\",\"message\":\"$CURRENT_LIKES\",\"color\":\"${{ env.LIKES_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > likes-count.json
+          echo "{\"schemaVersion\":1,\"label\":\"❤️ likes\",\"message\":\"$CURRENT_LIKES\",\"color\":\"$LIKES_COLOR\",\"style\":\"$BADGE_STYLE\"}" > likes-count.json
 
       - name: Update visitor count
         run: |
+          # Initialize or load visitor data
           if [ ! -f "visitor-data.json" ]; then
             echo '{"unique_visitors":1,"last_updated":"","fallback_mode":true}' > visitor-data.json
           fi
 
+          # Increment if manual run by user
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.actor }}" != "github-actions[bot]" ]; then
             CURRENT=$(jq -r '.unique_visitors' visitor-data.json)
             NEW=$((CURRENT + 1))
@@ -104,7 +109,7 @@ jobs:
           fi
 
           CURRENT_VISITORS=$(jq -r '.unique_visitors' visitor-data.json)
-          echo "{\"schemaVersion\":1,\"label\":\"👀 views\",\"message\":\"$CURRENT_VISITORS\",\"color\":\"${{ env.BADGE_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > visitor-count.json
+          echo "{\"schemaVersion\":1,\"label\":\"👀 views\",\"message\":\"$CURRENT_VISITORS\",\"color\":\"$BADGE_COLOR\",\"style\":\"$BADGE_STYLE\"}" > visitor-count.json
 
       - name: Create screenshot script if not exists
         run: |
@@ -123,7 +128,6 @@ jobs:
             
             const page = await browser.newPage();
             
-            // Отримуємо URL з GitHub Pages або локальний файл
             const githubPages = `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/${process.env.GITHUB_REPOSITORY_NAME}/`;
             const indexPath = path.join(process.cwd(), 'index.html');
             
@@ -155,7 +159,7 @@ jobs:
               console.log('✅ Screenshot created successfully');
             } catch (error) {
               console.error('❌ Screenshot failed:', error.message);
-              // Створюємо заглушку
+              // Create fallback
               const canvas = require('canvas').createCanvas(800, 600);
               const ctx = canvas.getContext('2d');
               ctx.fillStyle = '#f0f0f0';
@@ -190,40 +194,63 @@ jobs:
 
       - name: Update README
         run: |
-          REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
+          REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}"
           LIKES=$(jq -r '.total_likes' likes-data.json)
           VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
 
-          # Отримуємо справжнє ім'я workflow-файлу
+          # Get workflow file name
           WORKFLOW_REF="${{ github.workflow_ref }}"
           WORKFLOW_FILE="${WORKFLOW_REF##*/workflows/}"
           WORKFLOW_FILE="${WORKFLOW_FILE%@*}"
 
-          # Створюємо кнопку лайку
+          # Create like button
           cat > like-button.md << EOF
           [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&style=$BADGE_STYLE&color=$LIKES_COLOR)](https://github.com/${{ github.repository }}/actions/workflows/${WORKFLOW_FILE})
           EOF
 
-          {
-            echo "# ${{ github.event.repository.name }}"
-            echo ""
+          # Check if stats section exists in README
+          if [ -f "README.md" ] && grep -q "## 📊 Stats" README.md; then
+            # Stats section exists - preserve existing content
+            {
+              echo "# ${{ github.event.repository.name }}"
+              echo ""
+              echo "[![👀 Views](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](https://github.com/${{ github.repository }}/graphs/traffic)"
+              cat like-button.md
+              echo ""
+              echo "## 📸 Screenshot"
+              echo "![Screenshot](screenshot.png)"
+              echo ""
+              # Preserve existing content
+              cat README.md | awk '/^## 📊 Stats/{exit} {print}'
+            } > README_new.md
+          else
+            # Stats section doesn't exist - generate new content
+            {
+              echo "# ${{ github.event.repository.name }}"
+              echo ""
+              echo "[![👀 Views](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](https://github.com/${{ github.repository }}/graphs/traffic)"
+              cat like-button.md
+              echo ""
+              echo "## 📸 Screenshot"
+              echo "![Screenshot](screenshot.png)"
+              echo ""
+              echo "## 📊 Stats"
+              echo "- ❤️ Total likes: $LIKES"
+              echo "- 👀 Unique visitors: $VIEWS"
+              echo ""
+              echo "### How to like this project:"
+              echo "1. Click the red heart button above"
+              echo "2. Click \"Run workflow\""
+              echo "3. Ensure \"Add your like\" is checked"
+              echo "4. Click \"Run workflow\" again"
+              echo ""
+              if [ -f "README_template.md" ]; then
+                cat README_template.md
+              fi
+            } > README_new.md
+          fi
 
-            # Бейджі вгорі
-            echo "[![👀 Views](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](https://github.com/${{ github.repository }}/graphs/traffic)"
-            cat like-button.md
-            echo ""
-
-            # Скриншот одразу після бейджів
-            echo "## 📸 Screenshot"
-            echo "![Screenshot](screenshot.png)"
-            echo ""
-
-            # Далі - шаблон або контент
-            if [ -f "README_template.md" ]; then
-              cat README_template.md
-            
-            fi
-          } > README.md
+          mv README_new.md README.md
 
       - name: Check for changes
         id: changes
@@ -262,8 +289,9 @@ jobs:
         run: |
           echo "📊 Workflow Summary:"
           echo "=================="
-          echo "📸 Screenshot: $(ls -lh screenshot.* 2>/dev/null || echo 'not available')"
-          echo "❤️ Likes: $LIKES"
-          echo "👀 Views: $VIEWS"
+          echo "📸 Screenshot: $(ls -lh screenshot.png 2>/dev/null || echo 'not available')"
+          echo "❤️ Likes: $(jq -r '.total_likes' likes-data.json 2>/dev/null || echo '0')"
+          echo "👀 Views: $(jq -r '.unique_visitors' visitor-data.json 2>/dev/null || echo '0')"
           echo "🌿 Branch: ${{ github.ref_name }}"
           echo "📝 Repository: ${{ github.repository }}"
+          echo "🔄 Workflow File: $WORKFLOW_FILE"
