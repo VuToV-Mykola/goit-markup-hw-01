@@ -10,7 +10,7 @@ on:
       add_like:
         description: 'Add your like (only one per user allowed)'
         required: false
-        default: false
+        default: true # Змінено з false на true
         type: boolean
       screenshot_selector:
         description: 'CSS selector for screenshot'
@@ -180,27 +180,43 @@ jobs:
           LIKES=$(jq -r '.total_likes' likes-data.json)
           VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
 
-          # Автоматичне визначення імені workflow-файлу без пробілів та спецсимволів
-          WORKFLOW_FILE=$(echo "$GITHUB_WORKFLOW" | tr ' ' '-' | tr -d '&')".yml"
+          # Виправлено: отримуємо справжнє ім'я workflow-файлу
+          WORKFLOW_REF="${{ github.workflow_ref }}"
+          WORKFLOW_FILE="${WORKFLOW_REF##*/workflows/}"
+          WORKFLOW_FILE="${WORKFLOW_FILE%@*}"
 
+          # Виправлений лінк для кнопки лайку
           cat > like-button.md << EOF
-          [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/${{ github.repository }}/actions/workflows/${WORKFLOW_FILE}?add_like=true)
+          [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&style=$BADGE_STYLE&color=$LIKES_COLOR)](https://github.com/${{ github.repository }}/actions/workflows/${WORKFLOW_FILE})
           EOF
 
           {
             echo "# ${{ github.event.repository.name }}"
             echo ""
+
+            # Бейджі вгорі
             echo "[![👀 Views](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](https://github.com/${{ github.repository }}/graphs/traffic)"
             cat like-button.md
             echo ""
+
+            # 📸 Скриншот одразу після бейджів
+            echo "## 📸 Screenshot"
+            if [ -f "screenshot.png" ]; then
+              echo "![Latest Screenshot](screenshot.png)"
+            elif [ -f "screenshot.svg" ]; then
+              echo "![Latest Screenshot](screenshot.svg)"
+            else
+              echo "![Screenshot unavailable](https://img.shields.io/badge/Screenshot-unavailable-lightgrey?style=${BADGE_STYLE})"
+            fi
+            echo ""
+
+            # Далі — шаблон або статистика
             if [ -f "README_template.md" ]; then
               cat README_template.md
             else
               echo "## 📊 Stats"
               echo "- Total likes: ${LIKES}"
               echo "- Unique visitors: ${VIEWS}"
-              echo ""
-              echo "![Latest Screenshot](screenshot.png)"
             fi
           } > README.md
 
