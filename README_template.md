@@ -10,7 +10,7 @@
 
 ![Certification Badge](./assets/certificat-02.jpg)
 
-[SOLOLEARN](www.sololearn.com/certificates/CC-H5NEDBR5)
+[SOLOLEARN](https://www.sololearn.com/certificates/CC-H5NEDBR5)
 
 ## 📌 Завдання
 
