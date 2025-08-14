@@ -1,116 +1,77 @@
-name: System of likes and views
+name: Система лайків та переглядів
 
 on:
   push:
     branches: [main, master]
   schedule:
-    - cron: '0 */2 * * *' # Оновлення кожні 2 години
+    - cron: '0 */2 * * *'
   workflow_dispatch:
     inputs:
       add_like:
-        description: 'Додати лайк (лише один на користувача)'
+        description: 'Додати лайк (1 на користувача)'
         required: false
         default: true
         type: boolean
-      screenshot_selector:
-        description: 'CSS селектор для знімку екрану'
-        required: false
-        default: 'body'
-        type: string
 
 env:
-  SCREENSHOT_WIDTH: 1920
-  SCREENSHOT_HEIGHT: 1080
   BADGE_STYLE: for-the-badge
   BADGE_COLOR: brightgreen
   LIKES_COLOR: red
 
 jobs:
   update-stats:
-    name: Оновлення статистики
     runs-on: ubuntu-latest
 
     steps:
       - name: Завантаження репозиторію
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          fetch-depth: 0
-
-      - name: Налаштування Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Встановлення залежностей
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable jq
 
       - name: Ініціалізація даних
         run: |
           if [ ! -f "likes-data.json" ]; then
-            echo '{"total_likes":0,"unique_users":[],"created_at":"","last_updated":""}' > likes-data.json
+            echo '{"total_likes":0,"unique_users":[]}' > likes-data.json
           fi
           if [ ! -f "visitor-data.json" ]; then
-            echo '{"unique_visitors":1,"last_updated":"","fallback_mode":true}' > visitor-data.json
+            echo '{"unique_visitors":1}' > visitor-data.json
           fi
 
       - name: Обробка лайків
         run: |
-          if [ "${{ github.event.inputs.add_like }}" = "true" ]; then
+          if ${{ github.event.inputs.add_like }}; then
             USER="${{ github.actor }}"
-            CURRENT_USERS=$(jq -r '.unique_users[]' likes-data.json 2>/dev/null || echo "")
-            
-            if echo "$CURRENT_USERS" | grep -q "$USER"; then
-              echo "➡️ $USER вже ставив лайк раніше"
-            else
-              jq --arg user "$USER" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-                '.total_likes += 1 | .unique_users += [$user] | .last_updated = $date | if .created_at == "" then .created_at = $date else . end' \
-                likes-data.json > tmp.json && mv tmp.json likes-data.json
-              echo "❤️ Новий лайк від $USER"
+            if ! jq -e --arg u "$USER" '.unique_users | contains([$u])' likes-data.json; then
+              jq --arg u "$USER" '.total_likes += 1 | .unique_users += [$u]' likes-data.json > tmp.json && mv tmp.json likes-data.json
             fi
           fi
-
-          LIKES=$(jq -r '.total_likes // 0' likes-data.json)
-          echo "{\"schemaVersion\":1,\"label\":\"❤️ лайки\",\"message\":\"$LIKES\",\"color\":\"${{ env.LIKES_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > likes-count.json
-
-      - name: Оновлення переглядів
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.actor }}" != "github-actions[bot]" ]; then
-            CURRENT=$(jq -r '.unique_visitors // 1' visitor-data.json)
-            NEW=$((CURRENT + 1))
-            jq --arg count "$NEW" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-              '.unique_visitors = ($count | tonumber) | .last_updated = $date' \
-              visitor-data.json > tmp.json && mv tmp.json visitor-data.json
-          fi
-
-          VIEWS=$(jq -r '.unique_visitors // 1' visitor-data.json)
-          echo "{\"schemaVersion\":1,\"label\":\"👀 перегляди\",\"message\":\"$VIEWS\",\"color\":\"${{ env.BADGE_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > visitor-count.json
+          jq -n --arg l "$(jq -r '.total_likes // 0' likes-data.json)" \
+            --arg v "$(jq -r '.unique_visitors // 1' visitor-data.json)" \
+            '{likes: $l, views: $v}' > stats.json
 
       - name: Оновлення README
         run: |
-          REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
-          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/workflows/${{ github.workflow }}.yml"
-          LIKES=$(jq -r '.total_likes // 0' likes-data.json)
-          VIEWS=$(jq -r '.unique_visitors // 1' visitor-data.json)
+          REPO="https://github.com/${{ github.repository }}"
+          WORKFLOW_URL="$REPO/actions/workflows/${{ github.workflow }}.yml"
+          LIKES=$(jq -r '.likes' stats.json)
+          VIEWS=$(jq -r '.views' stats.json)
 
           {
             echo "# ${{ github.event.repository.name }}"
             echo ""
-            echo "[![Перегляди](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](${WORKFLOW_URL})"
-            echo "[![❤️ Лайки](https://img.shields.io/endpoint?url=${REPO_URL}/likes-count.json)](${WORKFLOW_URL})"
+            echo "[![Лайки](https://img.shields.io/endpoint?url=$REPO/stats.json&label=❤️%20лайки&color=red&style=flat-square)]($WORKFLOW_URL)"
+            echo "[![Перегляди](https://img.shields.io/endpoint?url=$REPO/stats.json&label=👀%20перегляди&color=green&style=flat-square)]($WORKFLOW_URL)"
             echo ""
-            echo "## ❤️ Як поставити лайк:"
-            echo "Натисніть на червоне серце вище ❤️ або на зірочку в репозиторії"
-            echo "## 📊 Статистика"
-            echo "- Всього лайків: [$LIKES](${WORKFLOW_URL})"
-            echo "- Унікальних переглядів: [$VIEWS](${WORKFLOW_URL})"
+            echo "## Як поставити лайк:"
+            echo "1. Натисніть бейдж із сердечком вище"
+            echo "2. Оберіть \"Run workflow\""
+            echo "3. Підтвердіть дію"
             echo ""
-            echo "### Бейджі в реальному часі:"
-            echo "- [![Лайки](https://img.shields.io/endpoint?url=${REPO_URL}/likes-count.json)](${WORKFLOW_URL})"
-            echo "- [![Перегляди](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)](${WORKFLOW_URL})"
+            echo "## Статистика"
+            echo "- Всього лайків: $LIKES"
+            echo "- Унікальних переглядів: $VIEWS"
+            echo ""
+            echo "## Бейджі"
+            echo "[![Лайки]($REPO/stats.json?label=лайки&color=red)]($WORKFLOW_URL)"
+            echo "[![Перегляди]($REPO/stats.json?label=перегляди&color=green)]($WORKFLOW_URL)"
             echo ""
             
             if [ -f "README_template.md" ]; then
@@ -120,8 +81,8 @@ jobs:
 
       - name: Запис змін
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add .
-          git commit -m "🔄 Statistics Update: $ Views Views, $ Likes likes" || exit 0
+          git commit -m "🔄 Оновлено статистику" || exit 0
           git push
