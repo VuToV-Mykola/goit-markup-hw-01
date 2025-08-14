@@ -1,16 +1,3 @@
-# My Project
-
-[![Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)] [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
-
-## 💖 How to like this project:
-
-1. Click the red heart button above - your like will be added automatically!
-
-## 📊 Stats
-
-- Total likes: ![Likes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json)
-- Unique visitors: ![Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)
-
 ## Мої досягнення
 
 ![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
