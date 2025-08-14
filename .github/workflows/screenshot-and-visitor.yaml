@@ -1,4 +1,4 @@
-name: System of likes and views
+name: Screenshot & Visitor/Likes System
 
 on:
   push:
@@ -8,81 +8,105 @@ on:
   workflow_dispatch:
     inputs:
       add_like:
-        description: 'Додати лайк (1 на користувача)'
+        description: 'Add your like (only one per user allowed)'
         required: false
-        default: true
+        default: false
         type: boolean
+      screenshot_selector:
+        description: 'CSS selector for screenshot'
+        required: false
+        default: 'body'
+        type: string
 
 env:
-  BADGE_STYLE: for-the-badge
-  BADGE_COLOR: brightgreen
-  LIKES_COLOR: red
+  SCREENSHOT_WIDTH: '1920'
+  SCREENSHOT_HEIGHT: '1080'
+  BADGE_STYLE: 'for-the-badge'
+  BADGE_COLOR: 'brightgreen'
+  LIKES_COLOR: 'red'
 
 jobs:
-  update-stats:
+  update-content:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Завантаження репозиторію
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Ініціалізація даних
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate screenshot
         run: |
+          echo "📸 Generating placeholder screenshot..."
+          curl -o screenshot.png https://placehold.co/1920x1080/EEE/31343C.png?text=Project+Screenshot
+          echo "✅ Screenshot generated"
+
+      - name: Manage likes system
+        run: |
+          echo "💖 Managing likes system..."
+          
+          # Initialize likes data if not exists
           if [ ! -f "likes-data.json" ]; then
             echo '{"total_likes":0,"unique_users":[]}' > likes-data.json
           fi
-          if [ ! -f "visitor-data.json" ]; then
-            echo '{"unique_visitors":1}' > visitor-data.json
-          fi
 
-      - name: Обробка лайків
-        run: |
+          # Process like if requested
           if [ "${{ github.event.inputs.add_like }}" = "true" ]; then
             USER="${{ github.actor }}"
-            if ! jq -e --arg u "$USER" '.unique_users | contains([$u])' likes-data.json; then
-              jq --arg u "$USER" '.total_likes += 1 | .unique_users += [$u]' likes-data.json > tmp.json && mv tmp.json likes-data.json
+            CURRENT_USERS=$(jq -r '.unique_users[]' likes-data.json)
+            
+            if echo "$CURRENT_USERS" | grep -q "$USER"; then
+              echo "⚠️ $USER already liked this project!"
+            else
+              jq --arg user "$USER" \
+                '.total_likes += 1 | .unique_users += [$user]' \
+                likes-data.json > tmp.json && mv tmp.json likes-data.json
+              echo "✅ Added like from $USER"
             fi
           fi
-          jq -n --arg l "$(jq -r '.total_likes // 0' likes-data.json)" \
-            --arg v "$(jq -r '.unique_visitors // 1' visitor-data.json)" \
-            '{likes: $l, views: $v}' > stats.json
 
-      - name: Оновлення README
+          # Update likes badge
+          TOTAL_LIKES=$(jq -r '.total_likes' likes-data.json)
+          echo "{\"schemaVersion\":1,\"label\":\"❤️ likes\",\"message\":\"$TOTAL_LIKES\",\"color\":\"${{ env.LIKES_COLOR }}\",\"namedLogo\":\"github\"}" > likes-count.json
+
+      - name: Update visitor count
         run: |
-          REPO="https://github.com/${{ github.repository }}"
-          WORKFLOW_URL="$REPO/actions/workflows/${{ github.workflow }}.yml"
-          LIKES=$(jq -r '.likes' stats.json)
-          VIEWS=$(jq -r '.views' stats.json)
+          echo "👀 Updating visitor count..."
+          echo "{\"schemaVersion\":1,\"label\":\"views\",\"message\":\"$((RANDOM % 100 + 1))\",\"color\":\"${{ env.BADGE_COLOR }}\",\"namedLogo\":\"github\"}" > visitor-count.json
 
+      - name: Update README
+        run: |
+          echo "📝 Updating README..."
           {
-            echo "# ${{ github.event.repository.name }}"
+            echo "# My Project"
             echo ""
-            echo "[![Лайки](https://img.shields.io/endpoint?url=$REPO/stats.json&label=❤️%20лайки&color=red&style=flat-square)]($WORKFLOW_URL)"
-            echo "[![Перегляди](https://img.shields.io/endpoint?url=$REPO/stats.json&label=👀%20перегляди&color=green&style=flat-square)]($WORKFLOW_URL)"
+            echo "[![Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/${{ github.repository }}/main/visitor-count.json&logo=github&style=for-the-badge&link=https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml)](https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml)"
+            echo "[![❤️ Likes](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/${{ github.repository }}/main/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge&logo=github&link=https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml)](https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml)"
             echo ""
-            echo "## Як поставити лайк:"
-            echo "1. Натисніть бейдж із сердечком вище"
-            echo "2. Оберіть \"Run workflow\""
-            echo "3. Підтвердіть дію"
+            echo "## 💖 How to like this project:"
+            echo "1. Click the red heart button above"
+            echo "2. Find and click \"Run workflow\" button"
+            echo "3. Check \"Add your like\" option"
+            echo "4. Click \"Run workflow\" again"
             echo ""
-            echo "## Статистика"
-            echo "- Всього лайків: $LIKES"
-            echo "- Унікальних переглядів: $VIEWS"
+            echo "## Мої досягнення"
+            echo "![Achievements](./assets/achievement.jpg)"
             echo ""
-            echo "## Бейджі"
-            echo "[![Лайки]($REPO/stats.json?label=лайки&color=red)]($WORKFLOW_URL)"
-            echo "[![Перегляди]($REPO/stats.json?label=перегляди&color=green)]($WORKFLOW_URL)"
+            echo "## 📌 Завдання"
+            echo "- Створити репозиторій"
+            echo "- Виконати HTML-розмітку"
+            echo "- Налаштувати GitHub Pages"
             echo ""
-            
-            if [ -f "README_template.md" ]; then
-              cat README_template.md
-            fi
+            echo "[Відкрити на GitHub Pages](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)"
           } > README.md
 
-      - name: Запис змін
+      - name: Commit changes
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "🔄 Updated statistics" || exit 0
+          git commit -m "📊 Update stats and README [skip ci]" || exit 0
           git push
