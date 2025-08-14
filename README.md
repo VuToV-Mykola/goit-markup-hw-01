@@ -1,15 +1,17 @@
 # My Project
 
-[![Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json)]
-[![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=REPO_URL/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
+[![Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)]
+[![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
 
-## 💖 Як поставити лайк:
-1. Натисніть на червоне серце вище
-2. У відкритому вікні натисніть "Run workflow"
-3. Поставте галочку "Add your like"
-4. Натисніть "Run workflow" ще раз
+## 💖 How to like this project:
+1. Click the red heart button above
+2. Click "Run workflow"
+3. Check "Add your like"
+4. Click "Run workflow" again
 
-Ваш унікальний лайк буде додано до статистики!
+## 📊 Stats
+- Total likes: ![Likes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json)
+- Unique visitors: ![Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)
 
 ## Мої досягнення
 
@@ -36,7 +38,6 @@
 ## ✅ Критерії виконання завдання
 
 ### **Проєкт**
-
 - `A1` HTML-файл називається **index.html**.
 - `A2` У корені проєкту є папка `images` із зображеннями.
 - `A3` У назвах файлів відсутні великі літери, кирилиця, пробіли та трансліт; використовуються лише літери та слова англійської мови.
@@ -46,7 +47,6 @@
 - `A7` Код написаний згідно з настановами.
 
 ### **Розмітка**
-
 - `B1` Розмітка набрана у файлі **index.html**.
 - `B2` Виконана HTML-розмітка всіх елементів макета.
 - `B3` Теги використані відповідно до їх семантичного змісту.
