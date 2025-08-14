@@ -106,10 +106,11 @@ jobs:
           CURRENT_VISITORS=$(jq -r '.unique_visitors' visitor-data.json)
           echo "{\"schemaVersion\":1,\"label\":\"👀 views\",\"message\":\"$CURRENT_VISITORS\",\"color\":\"${{ env.BADGE_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > visitor-count.json
 
-      - name: Create screenshot script
+      - name: Create screenshot script if not exists
         run: |
-          mkdir -p scripts
-          cat > scripts/screenshot.js << 'EOF'
+          if [ ! -f "screenshot.js" ] && [ ! -f "scripts/screenshot.js" ]; then
+            mkdir -p scripts
+            cat > scripts/screenshot.js << 'EOF'
           const puppeteer = require('puppeteer');
           const fs = require('fs');
           const path = require('path');
@@ -122,6 +123,7 @@ jobs:
             
             const page = await browser.newPage();
             
+            // Отримуємо URL з GitHub Pages або локальний файл
             const githubPages = `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/${process.env.GITHUB_REPOSITORY_NAME}/`;
             const indexPath = path.join(process.cwd(), 'index.html');
             
@@ -153,17 +155,18 @@ jobs:
               console.log('✅ Screenshot created successfully');
             } catch (error) {
               console.error('❌ Screenshot failed:', error.message);
+              // Створюємо заглушку
+              const canvas = require('canvas').createCanvas(800, 600);
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#f0f0f0';
+              ctx.fillRect(0, 0, 800, 600);
+              ctx.fillStyle = '#333';
+              ctx.font = '24px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText('Screenshot not available', 400, 300);
               
-              const fallbackSvg = `
-                <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="800" height="600" fill="#f0f0f0"/>
-                  <text x="400" y="300" text-anchor="middle" fill="#333" font-size="24" font-family="Arial">
-                    Screenshot not available
-                  </text>
-                </svg>
-              `;
-              
-              fs.writeFileSync('screenshot.svg', fallbackSvg);
+              const buffer = canvas.toBuffer('image/png');
+              fs.writeFileSync('screenshot.png', buffer);
             }
             
             await browser.close();
@@ -171,9 +174,15 @@ jobs:
 
           takeScreenshot().catch(console.error);
           EOF
+          fi
 
       - name: Generate screenshot
-        run: node scripts/screenshot.js
+        run: |
+          if [ -f "package.json" ] && npm run | grep -q "screenshot"; then
+            npm run screenshot
+          else
+            node scripts/screenshot.js
+          fi
         env:
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GITHUB_REPOSITORY_NAME: ${{ github.event.repository.name }}
@@ -206,18 +215,13 @@ jobs:
 
             # Скриншот одразу після бейджів
             echo "## 📸 Screenshot"
-            if [ -f "screenshot.png" ]; then
-              echo "![Latest Screenshot](screenshot.png)"
-            elif [ -f "screenshot.svg" ]; then
-              echo "![Latest Screenshot](screenshot.svg)"
-            else
-              echo "![Screenshot unavailable](https://img.shields.io/badge/Screenshot-unavailable-lightgrey?style=${BADGE_STYLE})"
-            fi
+            echo "![Screenshot](screenshot.png)"
             echo ""
 
             # Далі - шаблон або контент
             if [ -f "README_template.md" ]; then
               cat README_template.md
+            
             fi
           } > README.md
 
