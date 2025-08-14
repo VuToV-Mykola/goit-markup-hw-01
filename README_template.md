@@ -1,6 +1,5 @@
-![Unique Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json) ![Unique Likes](https://img.shields.io/endpoint?url=REPO_URL/likes-count.json)
-
 ## Мої досягнення
+![Unique Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json) ![Unique Likes](https://img.shields.io/endpoint?url=REPO_URL/likes-count.json)
 
 ![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
 
