@@ -1,4 +1,4 @@
-name: Screenshot & Unique Visitor/Likes System
+name: Screenshot & Visitor/Likes System
 
 on:
   push:
@@ -10,20 +10,25 @@ on:
       add_like:
         description: 'Add your like (only one per user allowed)'
         required: false
-        default: true # Змінено з false на true
+        default: true # Змінено на true
         type: boolean
       screenshot_selector:
         description: 'CSS selector for screenshot'
         required: false
         default: 'body'
         type: string
+      force_update:
+        description: 'Force update even if no changes'
+        required: false
+        default: false
+        type: boolean
 
 env:
-  SCREENSHOT_WIDTH: ${{ vars.SCREENSHOT_WIDTH || '1920' }}
-  SCREENSHOT_HEIGHT: ${{ vars.SCREENSHOT_HEIGHT || '1080' }}
-  BADGE_STYLE: ${{ vars.BADGE_STYLE || 'for-the-badge' }}
-  BADGE_COLOR: ${{ vars.BADGE_COLOR || 'brightgreen' }}
-  LIKES_COLOR: ${{ vars.LIKES_COLOR || 'red' }}
+  SCREENSHOT_WIDTH: '1920'
+  SCREENSHOT_HEIGHT: '1080'
+  BADGE_STYLE: 'for-the-badge'
+  BADGE_COLOR: 'brightgreen'
+  LIKES_COLOR: 'red'
 
 jobs:
   update-readme-and-visitor:
@@ -180,12 +185,12 @@ jobs:
           LIKES=$(jq -r '.total_likes' likes-data.json)
           VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
 
-          # Виправлено: отримуємо справжнє ім'я workflow-файлу
+          # Отримуємо справжнє ім'я workflow-файлу
           WORKFLOW_REF="${{ github.workflow_ref }}"
           WORKFLOW_FILE="${WORKFLOW_REF##*/workflows/}"
           WORKFLOW_FILE="${WORKFLOW_FILE%@*}"
 
-          # Виправлений лінк для кнопки лайку
+          # Створюємо кнопку лайку
           cat > like-button.md << EOF
           [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&style=$BADGE_STYLE&color=$LIKES_COLOR)](https://github.com/${{ github.repository }}/actions/workflows/${WORKFLOW_FILE})
           EOF
@@ -199,7 +204,7 @@ jobs:
             cat like-button.md
             echo ""
 
-            # 📸 Скриншот одразу після бейджів
+            # Скриншот одразу після бейджів
             echo "## 📸 Screenshot"
             if [ -f "screenshot.png" ]; then
               echo "![Latest Screenshot](screenshot.png)"
@@ -210,20 +215,51 @@ jobs:
             fi
             echo ""
 
-            # Далі — шаблон або статистика
+            # Далі - шаблон або контент
             if [ -f "README_template.md" ]; then
               cat README_template.md
-            else
-              echo "## 📊 Stats"
-              echo "- Total likes: ${LIKES}"
-              echo "- Unique visitors: ${VIEWS}"
             fi
           } > README.md
 
-      - name: Commit changes immediately
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected"
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true' || github.event.inputs.force_update == 'true'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
           git add .
-          git commit -m "📊 Immediate update with new screenshot: ${VIEWS} views, ${LIKES} likes" || exit 0
-          git push
+
+          COMMIT_MSG="📸 Update README, screenshot and badges"
+          if [ "$LIKE_STATUS" = "added" ]; then
+            COMMIT_MSG="$COMMIT_MSG + new like!"
+          fi
+
+          git commit -m "$COMMIT_MSG" || {
+            echo "⚠️ No changes to commit or commit failed"
+            exit 0
+          }
+
+          git push origin ${{ github.ref_name }}
+
+      - name: Display results
+        if: always()
+        run: |
+          echo "📊 Workflow Summary:"
+          echo "=================="
+          echo "📸 Screenshot: $(ls -lh screenshot.* 2>/dev/null || echo 'not available')"
+          echo "❤️ Likes: $LIKES"
+          echo "👀 Views: $VIEWS"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📝 Repository: ${{ github.repository }}"
