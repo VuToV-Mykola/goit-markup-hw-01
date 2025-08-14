@@ -1,3 +1,11 @@
+# goit-markup-hw-01
+
+[![👀 Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)](https://github.com/VuToV-Mykola/goit-markup-hw-01/graphs/traffic)
+[![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&style=for-the-badge&color=red)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yaml)
+
+## 📸 Screenshot
+![Screenshot](screenshot.png)
+
 ## Мої досягнення
 
 ![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
