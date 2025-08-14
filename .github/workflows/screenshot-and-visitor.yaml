@@ -1,4 +1,4 @@
-name: Знімок екрану та система лайків/переглядів
+name: Screenshot and likes/views
 
 on:
   push:
@@ -183,38 +183,31 @@ jobs:
           CURRENT_VISITORS=$(jq -r '.unique_visitors' visitor-data.json)
           echo "{\"schemaVersion\":1,\"label\":\"👀 перегляди\",\"message\":\"$CURRENT_VISITORS\",\"color\":\"${{ env.BADGE_COLOR }}\",\"style\":\"${{ env.BADGE_STYLE }}\"}" > visitor-count.json
 
-      - name: Оновлення README
-        run: |
+          - name: Оновлення README
+            run: |
           REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main"
           LIKES=$(jq -r '.total_likes' likes-data.json)
           VIEWS=$(jq -r '.unique_visitors' visitor-data.json)
-
-          # Створення інтерактивної кнопки лайку
-          cat > like-button.md << 'EOF'
-          [![❤️ Подобається цей проєкт?](https://img.shields.io/badge/dynamic/json?url=${REPO_URL}/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Лайки&color=red&style=for-the-badge)](https://github.com/${{ github.repository }}/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
-          EOF
 
           # Генерація нового README
           {
             echo "# ${{ github.event.repository.name }}"
             echo ""
             echo "[![Перегляди](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)]"
-            cat like-button.md
-            echo ""
+            echo "[![❤️ Лайки](https://img.shields.io/endpoint?url=${REPO_URL}/likes-count.json)]"
             echo ""
             echo "## 💖 Як поставити лайк:"
             echo "1. Натисніть червоне серце вище - ваш лайк буде додано автоматично!"
             echo ""
             echo "## 📊 Статистика"
-            echo "- Всього лайків: ![Лайки](https://img.shields.io/endpoint?url=${REPO_URL}/likes-count.json)"
-            echo "- Унікальних переглядів: ![Перегляди](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)"
+            echo "- Всього лайків: [![Лайки](https://img.shields.io/endpoint?url=${REPO_URL}/likes-count.json)]"
+            echo "- Унікальних переглядів: [![Перегляди](https://img.shields.io/endpoint?url=${REPO_URL}/visitor-count.json)]"
             echo ""
             
             if [ -f "README_template.md" ]; then
               cat README_template.md
             fi
           } > README.md
-
       - name: Коміт змін
         run: |
           git config --global user.name "github-actions[bot]"
