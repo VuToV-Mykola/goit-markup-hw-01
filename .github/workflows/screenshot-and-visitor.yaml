@@ -1,4 +1,4 @@
-name: Система лайків та переглядів
+name: System of likes and views
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
 
       - name: Обробка лайків
         run: |
-          if ${{ github.event.inputs.add_like }}; then
+          if [ "${{ github.event.inputs.add_like }}" = "true" ]; then
             USER="${{ github.actor }}"
             if ! jq -e --arg u "$USER" '.unique_users | contains([$u])' likes-data.json; then
               jq --arg u "$USER" '.total_likes += 1 | .unique_users += [$u]' likes-data.json > tmp.json && mv tmp.json likes-data.json
@@ -84,5 +84,5 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add .
-          git commit -m "🔄 Оновлено статистику" || exit 0
+          git commit -m "🔄 Updated statistics" || exit 0
           git push
