@@ -1,8 +1,21 @@
+# My Project
+
+[![Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json)]
+[![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=REPO_URL/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&color=red&style=for-the-badge)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yml?query=workflow%3A%22Screenshot+%26+Unique+Visitor%2FLikes+System%22)
+
+## 💖 Як поставити лайк:
+1. Натисніть на червоне серце вище
+2. У відкритому вікні натисніть "Run workflow"
+3. Поставте галочку "Add your like"
+4. Натисніть "Run workflow" ще раз
+
+Ваш унікальний лайк буде додано до статистики!
+
 ## Мої досягнення
 
-![Unique Views](https://img.shields.io/endpoint?url=REPO_URL/visitor-count.json) ![Unique Likes](https://img.shields.io/endpoint?url=REPO_URL/likes-count.json) ![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
+![Опис зображення](./assets/head.jpg) ![Опис зображення](./assets/hw-01.jpg)
 
-## Мої сертифікати - Пройшов курс на Sololearn :
+## Мої сертифікати - Пройшов курс на Sololearn:
 
 ![Certification Badge](./assets/certificat.jpg)
 
