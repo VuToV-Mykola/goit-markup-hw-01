@@ -234,16 +234,6 @@ jobs:
               echo "## 📸 Screenshot"
               echo "![Screenshot](screenshot.png)"
               echo ""
-              echo "## 📊 Stats"
-              echo "- ❤️ Total likes: $LIKES"
-              echo "- 👀 Unique visitors: $VIEWS"
-              echo ""
-              echo "### How to like this project:"
-              echo "1. Click the red heart button above"
-              echo "2. Click \"Run workflow\""
-              echo "3. Ensure \"Add your like\" is checked"
-              echo "4. Click \"Run workflow\" again"
-              echo ""
               if [ -f "README_template.md" ]; then
                 cat README_template.md
               fi
