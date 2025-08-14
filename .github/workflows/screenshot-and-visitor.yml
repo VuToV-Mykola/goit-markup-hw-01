@@ -1,0 +1,116 @@
+name: Screenshot & Visitor Badge Update
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: "Branch to update"
+        default: "main"
+        required: false
+        type: string
+      readme_template:
+        description: "Path to README template"
+        default: "README_template.md"
+        required: false
+        type: string
+      screenshot_url:
+        description: "Optional URL for screenshot"
+        required: false
+        type: string
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 * * * *' # щогодини
+  workflow_dispatch:
+
+jobs:
+  update-readme-and-visitor:
+    runs-on: ubuntu-latest
+
+    env:
+      BRANCH_NAME: ${{ inputs.branch || 'main' }}
+      REPO_NAME: ${{ github.repository }}
+      REPO_OWNER: ${{ github.repository_owner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          ref: ${{ env.BRANCH_NAME }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate screenshot
+        run: |
+          node - <<'EOF'
+          const puppeteer = require('puppeteer');
+          (async () => {
+            const url = process.env.SCREENSHOT_URL || `https://${process.env.REPO_OWNER}.github.io/${process.env.REPO_NAME.split('/')[1]}`;
+            console.log(`📸 Taking screenshot of: ${url}`);
+            const browser = await puppeteer.launch({ headless: true });
+            const page = await browser.newPage();
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+            await page.screenshot({ path: 'screenshot.png', fullPage: true });
+            await browser.close();
+          })();
+          EOF
+        env:
+          SCREENSHOT_URL: ${{ inputs.screenshot_url }}
+
+      - name: Fetch repo traffic and generate visitor badge
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "🔹 Fetching repository views..."
+          VIEWS=$(curl -s -H "Authorization: token $PAT_TOKEN" \
+            "https://api.github.com/repos/$REPO_NAME/traffic/views" \
+            | jq '.count')
+
+          if [ "$VIEWS" = "null" ] || [ -z "$VIEWS" ]; then
+            VIEWS=0
+          fi
+
+          echo "🟢 Repository Views: $VIEWS"
+          echo "{\"schemaVersion\":1,\"label\":\"views\",\"message\":\"$VIEWS\",\"color\":\"brightgreen\",\"style\":\"for-the-badge\"}" > visitor-count.json
+
+      - name: Update README.md
+        run: |
+          TEMPLATE_FILE="${{ inputs.readme_template || 'README_template.md' }}"
+
+          echo "![Visitor Count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/$REPO_NAME/$BRANCH_NAME/visitor-count.json)" > README_new.md
+          echo "" >> README_new.md
+          echo "## Screenshot" >> README_new.md
+          echo "" >> README_new.md
+          echo "![Screenshot](screenshot.png)" >> README_new.md
+          echo "" >> README_new.md
+
+          if [ -f "$TEMPLATE_FILE" ]; then
+            cat "$TEMPLATE_FILE" >> README_new.md
+          else
+            echo "_No README template found at $TEMPLATE_FILE_" >> README_new.md
+          fi
+
+          mv README_new.md README.md
+
+      - name: Commit & Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase --autostash origin $BRANCH_NAME
+          git add README.md screenshot.png visitor-count.json
+          git commit -m "Update README, screenshot and visitor badge [ci skip]" || echo "No changes to commit"
+          git push
+
+      - name: Show screenshot info
+        run: ls -lh screenshot.png
