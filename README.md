@@ -1,10 +1,18 @@
-# goit-markup-hw-01
+<!-- AUTOGEN:STATS -->
 
-[![👀 Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/visitor-count.json)](https://github.com/VuToV-Mykola/goit-markup-hw-01/graphs/traffic) [![❤️ Like this project?](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-01/main/likes-count.json&query=%24.message&label=%F0%9F%92%96%20Likes&style=for-the-badge&color=red)](https://github.com/VuToV-Mykola/goit-markup-hw-01/actions/workflows/screenshot-and-visitor.yaml)
+[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML) [![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS) [![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)](https://code.visualstudio.com/) [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/)
 
-## 📸 Screenshot
+[![📊 Views](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/assets/db/visitors-badge.json)](https://github.com/VuToV-Mykola/goit-markup-hw-02/graphs/traffic)
+[![⭐ Stars](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/assets/db/likes-badge.json)](https://github.com/VuToV-Mykola/goit-markup-hw-02/actions/workflows/screenshot-and-visitor.yaml)
+[![📦 Size](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/assets/db/repo-size.json)](https://github.com/VuToV-Mykola/goit-markup-hw-02)
+[![📝 Language](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/assets/db/repo-language.json)](https://github.com/VuToV-Mykola/goit-markup-hw-02)
+[![📄 License](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/VuToV-Mykola/goit-markup-hw-02/main/assets/db/repo-license.json)](https://github.com/VuToV-Mykola/goit-markup-hw-02/blob/main/LICENSE)
 
-![Screenshot](screenshot.png)
+## 📸 Latest Screenshot
+
+![Project Screenshot](assets/screenshot.png)
+
+<!-- END:AUTOGEN -->
 
 ## Мої досягнення
 
